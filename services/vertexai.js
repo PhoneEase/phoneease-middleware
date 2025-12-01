@@ -16,14 +16,19 @@ const vertexAI = new VertexAI({
 const MODEL_NAME = process.env.VERTEX_AI_MODEL || 'gemini-2.0-flash-exp';
 
 /**
- * Build AI prompt for training
+ * Build AI prompt for training (Testing Context)
+ *
+ * This prompt is used for the /api/v1/train endpoint where users test
+ * their AI configuration through the WordPress admin interface.
  *
  * @param {Object} businessInfo - Business information
  * @param {string} message - User's training question
  * @returns {string} Formatted prompt
  */
 function buildTrainingPrompt(businessInfo, message) {
-  let prompt = `You are an AI assistant for ${businessInfo.business_name}.`;
+  let prompt = `You are testing the AI receptionist for ${businessInfo.business_name}.
+
+The human is training you and wants to see how you'll respond to customers.`;
 
   // Add business description if available
   if (businessInfo.business_description) {
@@ -35,10 +40,51 @@ function buildTrainingPrompt(businessInfo, message) {
     prompt += `\n\nBusiness hours: ${businessInfo.business_hours}`;
   }
 
-  prompt += `\n\nRespond to the following training question in a helpful, professional manner:\n${message}`;
+  prompt += `\n\nRespond to this test question:\n${message}`;
 
   return prompt;
 }
+
+/**
+ * FUTURE: Build AI prompt for phone calls (Production Context)
+ *
+ * When handling actual phone calls via Twilio, use a different prompt structure
+ * that presents the AI as a business employee, not as an AI assistant.
+ *
+ * IMPORTANT DIFFERENCES FROM TRAINING PROMPT:
+ * - Use "we" and "our" instead of "I'm an AI"
+ * - Speak on behalf of the business as if you're an employee
+ * - Never mention being an AI or not having information
+ * - Provide professional, employee-like responses
+ *
+ * Example implementation for future /api/v1/twilio/gather endpoint:
+ *
+ * function buildPhoneCallPrompt(businessInfo, message) {
+ *   let prompt = `You are the virtual receptionist for ${businessInfo.business_name}.
+ *
+ * IMPORTANT INSTRUCTIONS:
+ * - Speak on behalf of the business using "we" and "our"
+ * - Never say "I'm an AI" or "I don't have business hours"
+ * - Answer as if you are an employee of ${businessInfo.business_name}
+ * - Keep responses concise and suitable for phone conversation`;
+ *
+ *   if (businessInfo.business_description) {
+ *     prompt += `\n\nAbout us: ${businessInfo.business_description}`;
+ *   }
+ *
+ *   if (businessInfo.business_hours) {
+ *     prompt += `\n\nBusiness hours: ${businessInfo.business_hours}`;
+ *   }
+ *
+ *   if (businessInfo.services) {
+ *     prompt += `\n\nServices we offer: ${businessInfo.services}`;
+ *   }
+ *
+ *   prompt += `\n\nCustomer says: ${message}\n\nRespond professionally as ${businessInfo.business_name}'s receptionist:`;
+ *
+ *   return prompt;
+ * }
+ */
 
 /**
  * Call Gemini API with prompt
