@@ -223,8 +223,8 @@ Chat with AI for training purposes.
   "business_description": "News and media company",
   "training_used": 5,
   "training_limit": 100,
-  "created_at": "2024-12-01T12:00:00.000Z",
-  "updated_at": "2024-12-01T12:30:00.000Z"
+  "created_at": "2025-12-01T12:00:00.000Z",
+  "updated_at": "2025-12-01T12:30:00.000Z"
 }
 ```
 
@@ -286,12 +286,222 @@ gcloud run logs read phoneease-middleware \
 Or in Cloud Console:
 https://console.cloud.google.com/run/detail/us-central1/phoneease-middleware/logs
 
+## Deployment Status
+
+### Current Status
+- **Code Status:** Complete and ready for deployment
+- **Deployment Status:** Not yet deployed to Google Cloud Run
+- **Testing Status:** Local testing complete, production testing pending
+
+### Next Steps
+1. Run `deploy.bat` (Windows) or `deploy.sh` (Mac/Linux)
+2. Grant service account permissions (Firestore, Vertex AI)
+3. Test health endpoint
+4. Test training endpoint from WordPress
+
+### Production URL (When Deployed)
+```
+https://phoneease-middleware-375589245036.us-central1.run.app
+```
+
+## WordPress Integration
+
+### How WordPress Connects
+
+WordPress plugin makes HTTP POST requests to the `/api/v1/train` endpoint when users interact with the AI Training interface.
+
+**WordPress Side:**
+- File: `includes/class-phoneease-ajax-handlers.php`
+- Method: `handle_train_ai()`
+- Endpoint: Hardcoded middleware URL
+
+**Request Flow:**
+1. User sends message in AI Training chat
+2. WordPress AJAX handler receives request
+3. Handler retrieves `site_token` from options
+4. Handler calls middleware `/api/v1/train` endpoint
+5. Middleware processes request (Firestore + Vertex AI)
+6. Middleware returns AI response
+7. WordPress displays response in chat interface
+
+### Integration Testing
+
+After deployment, test the integration:
+
+1. **From WordPress:**
+   - Go to: PhoneEase → AI Training
+   - Send test message: "What are your business hours?"
+   - Verify AI response appears
+
+2. **Check Firestore:**
+   - Go to Firebase Console
+   - Verify customer document created
+   - Verify `training_used` incremented
+
+3. **Check Cloud Run Logs:**
+   ```bash
+   gcloud run logs read phoneease-middleware --region us-central1 --limit 50
+   ```
+
+## Testing
+
+### Local Testing
+
+1. Start local server:
+   ```bash
+   npm start
+   ```
+
+2. Test health endpoint:
+   ```bash
+   curl http://localhost:8080/health
+   ```
+
+3. Test training endpoint:
+   ```bash
+   curl -X POST http://localhost:8080/api/v1/train \
+     -H "Content-Type: application/json" \
+     -d '{
+       "site_token": "test_token_123",
+       "message": "What are your business hours?",
+       "business_info": {
+         "business_name": "Test Business"
+       }
+     }'
+   ```
+
+### Production Testing
+
+After deployment:
+
+1. Health check:
+   ```bash
+   curl https://phoneease-middleware-375589245036.us-central1.run.app/health
+   ```
+
+2. Training endpoint:
+   ```bash
+   curl -X POST https://phoneease-middleware-375589245036.us-central1.run.app/api/v1/train \
+     -H "Content-Type: application/json" \
+     -d '{
+       "site_token": "kv6tFnZDDsxPqXWh54RjnbyNNLbVjdxp",
+       "message": "What are your business hours?",
+       "business_info": {
+         "business_name": "OTDNews"
+       }
+     }'
+   ```
+
+3. Verify response:
+   ```json
+   {
+     "success": true,
+     "ai_response": "Thank you for contacting OTDNews. How can I help you today?",
+     "tokens_used": 42
+   }
+   ```
+
 ## Security Notes
 
 - The `/api/v1/train` endpoint is currently unauthenticated
 - Rate limiting is enforced via Firestore `training_limit` field
 - In production, consider adding API key authentication
 - Firestore security rules should restrict write access
+- Site tokens act as customer identifiers, not authentication tokens
+
+## Monitoring and Maintenance
+
+### Monitoring
+
+**Cloud Run Metrics:**
+- Request count
+- Error rate
+- Latency
+- Memory usage
+- CPU usage
+
+**Firestore Metrics:**
+- Document reads/writes
+- Storage usage
+- Customer count
+
+**Vertex AI Metrics:**
+- API requests per day
+- Tokens per minute
+- Error rate
+
+### Logs
+
+View real-time logs:
+```bash
+gcloud run logs tail phoneease-middleware --region us-central1
+```
+
+View recent logs:
+```bash
+gcloud run logs read phoneease-middleware --region us-central1 --limit 100
+```
+
+Filter by severity:
+```bash
+gcloud run logs read phoneease-middleware --region us-central1 --log-filter="severity>=ERROR"
+```
+
+### Maintenance
+
+**Regular Tasks:**
+- Monitor error logs weekly
+- Review Firestore customer records
+- Check API quota usage
+- Update dependencies monthly
+- Review security patches
+
+**Scaling:**
+- Cloud Run auto-scales from 0 to 100 instances
+- No manual scaling required
+- Monitor costs as usage grows
+- Consider reserved instances for high traffic
+
+## Future Endpoints
+
+### POST /api/v1/register (Planned)
+
+Customer registration during setup wizard.
+
+**Request:**
+```json
+{
+  "site_token": "xyz",
+  "business_name": "Joe's Plumbing"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "phone_number": "+15551234567",
+  "customer_id": "cust_abc123"
+}
+```
+
+### POST /api/v1/twilio/voice (Planned)
+
+Handle incoming phone calls via Twilio webhook.
+
+**Request:** TwiML from Twilio
+**Response:** TwiML for AI response
+
+### POST /api/v1/twilio/sms (Planned)
+
+Handle incoming SMS messages via Twilio webhook.
+
+**Request:** SMS from Twilio
+**Response:** TwiML for AI response
+
+## Contributing
+
+This is a private repository for PhoneEase infrastructure. For bug reports or feature requests, contact the development team.
 
 ## License
 
