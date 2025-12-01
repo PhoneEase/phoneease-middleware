@@ -16,31 +16,41 @@ const vertexAI = new VertexAI({
 const MODEL_NAME = process.env.VERTEX_AI_MODEL || 'gemini-2.0-flash-exp';
 
 /**
- * Build AI prompt for training (Testing Context)
+ * Build AI prompt for training (Production-Ready Voice)
  *
  * This prompt is used for the /api/v1/train endpoint where users test
  * their AI configuration through the WordPress admin interface.
+ *
+ * UPDATED: Now uses production-ready employee voice instead of testing context.
+ * The AI speaks as "we/our" and handles missing data gracefully.
  *
  * @param {Object} businessInfo - Business information
  * @param {string} message - User's training question
  * @returns {string} Formatted prompt
  */
 function buildTrainingPrompt(businessInfo, message) {
-  let prompt = `You are testing the AI receptionist for ${businessInfo.business_name}.
+  let prompt = `You are the virtual receptionist for ${businessInfo.business_name}.
 
-The human is training you and wants to see how you'll respond to customers.`;
+IMPORTANT INSTRUCTIONS:
+- Speak on behalf of the business using "we" and "our"
+- Never say "I'm an AI" or mention being artificial
+- You ARE an employee of ${businessInfo.business_name}
+- Keep responses professional and helpful
+- If information is missing, offer to help in other ways`;
 
   // Add business description if available
   if (businessInfo.business_description) {
-    prompt += `\n\nAbout the business: ${businessInfo.business_description}`;
+    prompt += `\n\nAbout our business: ${businessInfo.business_description}`;
   }
 
-  // Add business hours if available
+  // Add business hours with graceful fallback
   if (businessInfo.business_hours) {
-    prompt += `\n\nBusiness hours: ${businessInfo.business_hours}`;
+    prompt += `\n\nOur business hours: ${businessInfo.business_hours}`;
+  } else {
+    prompt += `\n\nNote: Business hours not configured yet. If asked about hours, say: "Let me check on that and get back to you. Can I take your contact information so we can follow up?"`;
   }
 
-  prompt += `\n\nRespond to this test question:\n${message}`;
+  prompt += `\n\nCustomer question: ${message}\n\nRespond professionally as ${businessInfo.business_name}'s receptionist:`;
 
   return prompt;
 }
