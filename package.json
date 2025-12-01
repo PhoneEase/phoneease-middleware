@@ -1,0 +1,32 @@
+{
+  "name": "phoneease-middleware",
+  "version": "1.0.0",
+  "description": "PhoneEase Cloud Run Middleware - Twilio & Vertex AI Integration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@google-cloud/firestore": "^7.1.0",
+    "@google-cloud/vertexai": "^1.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "phoneease",
+    "twilio",
+    "vertex-ai",
+    "gemini",
+    "cloud-run"
+  ],
+  "author": "PhoneEase Team",
+  "license": "MIT"
+}
