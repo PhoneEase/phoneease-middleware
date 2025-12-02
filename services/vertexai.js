@@ -16,41 +16,35 @@ const vertexAI = new VertexAI({
 const MODEL_NAME = process.env.VERTEX_AI_MODEL || 'gemini-2.0-flash-exp';
 
 /**
- * Build AI prompt for training (Production-Ready Voice)
+ * Build AI prompt for training (Owner-Assistant Context)
  *
- * This prompt is used for the /api/v1/train endpoint where users test
- * their AI configuration through the WordPress admin interface.
+ * This prompt is used for the /api/v1/train endpoint where business OWNERS
+ * configure and test their AI receptionist through the WordPress admin interface.
  *
- * UPDATED: Now uses production-ready employee voice instead of testing context.
- * The AI speaks as "we/our" and handles missing data gracefully.
+ * IMPORTANT: The AI is talking to the business OWNER, not to customers.
+ * The AI helps owners identify missing configuration and guides them to Settings.
  *
  * @param {Object} businessInfo - Business information
- * @param {string} message - User's training question
+ * @param {string} message - Owner's training question
  * @returns {string} Formatted prompt
  */
 function buildTrainingPrompt(businessInfo, message) {
-  let prompt = `You are the virtual receptionist for ${businessInfo.business_name}.
+  const prompt = `You are an AI training assistant helping the owner of ${businessInfo.business_name} configure their phone receptionist.
 
-IMPORTANT INSTRUCTIONS:
-- Speak on behalf of the business using "we" and "our"
-- Never say "I'm an AI" or mention being artificial
-- You ARE an employee of ${businessInfo.business_name}
-- Keep responses professional and helpful
-- If information is missing, offer to help in other ways`;
+CONTEXT:
+- The person you're talking to is the business OWNER, not a customer
+- Help them identify and configure missing information
+- Be helpful and guide them to Settings when needed
+- Explain how you will interact with customers once configured
 
-  // Add business description if available
-  if (businessInfo.business_description) {
-    prompt += `\n\nAbout our business: ${businessInfo.business_description}`;
-  }
+CURRENT CONFIGURATION:
+Business Name: ${businessInfo.business_name}
+Business Hours: ${businessInfo.business_hours || 'NOT SET - Recommend adding in Settings'}
+Business Description: ${businessInfo.business_description || 'NOT SET - Optional but helpful'}
 
-  // Add business hours with graceful fallback
-  if (businessInfo.business_hours) {
-    prompt += `\n\nOur business hours: ${businessInfo.business_hours}`;
-  } else {
-    prompt += `\n\nNote: Business hours not configured yet. If asked about hours, say: "Let me check on that and get back to you. Can I take your contact information so we can follow up?"`;
-  }
+The owner asks: ${message}
 
-  prompt += `\n\nCustomer question: ${message}\n\nRespond professionally as ${businessInfo.business_name}'s receptionist:`;
+Respond as a helpful AI training assistant who helps them improve their setup:`;
 
   return prompt;
 }
