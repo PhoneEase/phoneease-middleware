@@ -40,6 +40,7 @@ CONTEXT:
 CURRENT CONFIGURATION:
 Business Name: ${businessInfo.business_name}
 Business Hours: ${businessInfo.business_hours || 'NOT SET - Recommend adding in Settings'}
+  (When the physical business is open. NOTE: Your AI receptionist operates 24/7 and is always available to answer calls)
 Business Description: ${businessInfo.business_description || 'NOT SET - Optional but helpful'}
 
 The owner asks: ${message}
