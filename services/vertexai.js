@@ -51,10 +51,10 @@ Respond as a helpful AI training assistant who helps them improve their setup:`;
 }
 
 /**
- * FUTURE: Build AI prompt for phone calls (Production Context)
+ * Build AI prompt for customer conversations (Production Context)
  *
- * When handling actual phone calls via Twilio, use a different prompt structure
- * that presents the AI as a business employee, not as an AI assistant.
+ * This prompt is used for actual customer phone calls where the AI acts as
+ * a professional receptionist for the business.
  *
  * IMPORTANT DIFFERENCES FROM TRAINING PROMPT:
  * - Use "we" and "our" instead of "I'm an AI"
@@ -62,34 +62,48 @@ Respond as a helpful AI training assistant who helps them improve their setup:`;
  * - Never mention being an AI or not having information
  * - Provide professional, employee-like responses
  *
- * Example implementation for future /api/v1/twilio/gather endpoint:
- *
- * function buildPhoneCallPrompt(businessInfo, message) {
- *   let prompt = `You are the virtual receptionist for ${businessInfo.business_name}.
- *
- * IMPORTANT INSTRUCTIONS:
- * - Speak on behalf of the business using "we" and "our"
- * - Never say "I'm an AI" or "I don't have business hours"
- * - Answer as if you are an employee of ${businessInfo.business_name}
- * - Keep responses concise and suitable for phone conversation`;
- *
- *   if (businessInfo.business_description) {
- *     prompt += `\n\nAbout us: ${businessInfo.business_description}`;
- *   }
- *
- *   if (businessInfo.business_hours) {
- *     prompt += `\n\nBusiness hours: ${businessInfo.business_hours}`;
- *   }
- *
- *   if (businessInfo.services) {
- *     prompt += `\n\nServices we offer: ${businessInfo.services}`;
- *   }
- *
- *   prompt += `\n\nCustomer says: ${message}\n\nRespond professionally as ${businessInfo.business_name}'s receptionist:`;
- *
- *   return prompt;
- * }
+ * @param {Object} businessInfo - Business information
+ * @param {string} message - Customer's message
+ * @param {Array} conversationHistory - Previous conversation turns (optional)
+ * @returns {string} Formatted prompt
  */
+function buildConversationPrompt(businessInfo, message, conversationHistory = []) {
+  let prompt = `You are the virtual receptionist for ${businessInfo.business_name}.
+
+CRITICAL RULES:
+1. ONLY provide information that was explicitly given to you in the business context below
+2. NEVER make up, fabricate, or assume information that wasn't provided
+3. If you don't have specific information, politely say: "I don't have that specific information right now, but I'd be happy to take your contact information and have someone get back to you"
+4. Speak on behalf of the business using "we" and "our"
+5. Never mention that you are an AI
+6. Keep responses concise and suitable for phone conversation
+7. Be helpful, professional, and friendly`;
+
+  if (businessInfo.business_description) {
+    prompt += `\n\nAbout our business: ${businessInfo.business_description}`;
+  }
+
+  if (businessInfo.business_hours) {
+    prompt += `\n\nOur business hours: ${businessInfo.business_hours}`;
+  }
+
+  if (businessInfo.services) {
+    prompt += `\n\nServices we offer: ${businessInfo.services}`;
+  }
+
+  // Add conversation history if provided
+  if (conversationHistory && conversationHistory.length > 0) {
+    prompt += `\n\nConversation so far:`;
+    conversationHistory.forEach((turn) => {
+      const speaker = turn.role === 'user' ? 'Customer' : 'You';
+      prompt += `\n${speaker}: ${turn.content}`;
+    });
+  }
+
+  prompt += `\n\nCustomer says: ${message}\n\nRespond professionally as ${businessInfo.business_name}'s receptionist:`;
+
+  return prompt;
+}
 
 /**
  * Call Gemini API with prompt
@@ -144,8 +158,49 @@ async function generateTrainingResponse(businessInfo, message) {
   return await callGemini(prompt);
 }
 
+/**
+ * Generate AI conversation response (for customer phone calls)
+ *
+ * @param {Object} businessInfo - Business information
+ * @param {string} message - Customer's message
+ * @param {Array} conversationHistory - Previous conversation turns
+ * @param {string} systemPrompt - Optional: Full system prompt from WordPress (overrides buildConversationPrompt)
+ * @returns {Promise<Object>} AI response with text and tokens
+ */
+async function generateConversationResponse(businessInfo, message, conversationHistory = [], systemPrompt = null) {
+  let prompt;
+
+  if (systemPrompt) {
+    console.log('Vertex AI: Using WordPress system prompt (includes caller ID, detailed instructions)');
+
+    // WordPress system prompt is the instruction set - we still need to append conversation history and current message
+    prompt = systemPrompt;
+
+    // Add conversation history if provided
+    if (conversationHistory && conversationHistory.length > 0) {
+      prompt += '\n\nConversation so far:';
+      conversationHistory.forEach((turn) => {
+        const speaker = turn.role === 'user' ? 'Customer' : 'You';
+        prompt += `\n${speaker}: ${turn.content}`;
+      });
+    }
+
+    // Add current message
+    prompt += `\n\nCustomer says: ${message}\n\nRespond professionally:`;
+
+  } else {
+    console.log('Vertex AI: Using fallback buildConversationPrompt (simple prompt - no caller ID)');
+    // Fall back to the simple buildConversationPrompt for backward compatibility
+    prompt = buildConversationPrompt(businessInfo, message, conversationHistory);
+  }
+
+  return await callGemini(prompt);
+}
+
 module.exports = {
   generateTrainingResponse,
+  generateConversationResponse,
   buildTrainingPrompt,
+  buildConversationPrompt,
   callGemini,
 };
