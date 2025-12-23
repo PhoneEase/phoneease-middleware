@@ -7,15 +7,17 @@ Cloud Run middleware for PhoneEase WordPress plugin. Handles AI training, Twilio
 ```
 WordPress Plugin → Cloud Run Middleware → Vertex AI (Gemini)
                                        → Firestore
-                                       → Twilio (future)
+                                       → Twilio
 ```
 
 ## Features
 
+- **Customer Registration** (`POST /api/v1/customers/register`) - Register customers with Twilio sub-accounts and phone numbers
 - **AI Training Endpoint** (`POST /api/v1/train`) - Chat with Gemini for training
 - **Auto-Registration** - Automatically registers new customers on first request
-- **Usage Tracking** - Tracks training requests per customer in Firestore
-- **Rate Limiting** - Enforces training limits per customer
+- **Usage Tracking** - Tracks training and call usage per customer in Firestore
+- **Rate Limiting** - Enforces training and call limits per customer
+- **Twilio Integration** - Creates sub-accounts and provisions phone numbers with area code matching
 
 ## Project Structure
 
@@ -23,10 +25,13 @@ WordPress Plugin → Cloud Run Middleware → Vertex AI (Gemini)
 phoneease-middleware/
 ├── index.js              # Express server entry point
 ├── routes/
-│   └── train.js          # /api/v1/train endpoint
+│   ├── train.js          # /api/v1/train endpoint
+│   ├── chat.js           # /api/v1/chat endpoint
+│   └── register.js       # /api/v1/customers/register endpoint
 ├── services/
 │   ├── firestore.js      # Firestore operations
-│   └── vertexai.js       # Vertex AI Gemini integration
+│   ├── vertexai.js       # Vertex AI Gemini integration
+│   └── twilio.js         # Twilio sub-account and phone provisioning
 ├── package.json          # Node.js dependencies
 ├── Dockerfile            # Container image definition
 └── .gcloudignore         # Cloud Run deployment exclusions
@@ -48,6 +53,8 @@ The following environment variables are required:
 - Node.js 18+
 - Google Cloud CLI (`gcloud`)
 - Access to Google Cloud project `white-airship-479502-r1`
+- Twilio account credentials (for Twilio integration features)
+- Vertex AI API key (for Gemini AI features)
 
 ### Setup
 
@@ -67,29 +74,56 @@ gcloud auth application-default login
 cp .env.example .env
 ```
 
-Edit `.env` with your configuration:
-```
-GOOGLE_CLOUD_PROJECT=white-airship-479502-r1
-VERTEX_AI_LOCATION=us-central1
-VERTEX_AI_MODEL=gemini-2.0-flash-exp
-PORT=8080
-NODE_ENV=development
-```
+4. Configure environment variables in `.env`:
 
-4. Run locally:
+   **Required Variables:**
+   - `GOOGLE_CLOUD_PROJECT` - Your Google Cloud project ID (e.g., `white-airship-479502-r1`)
+   - `VERTEX_AI_LOCATION` - Region for Vertex AI (default: `us-central1`)
+   - `VERTEX_AI_MODEL` - Gemini model name (default: `gemini-2.0-flash-exp`)
+   - `TWILIO_ACCOUNT_SID` - Your Twilio Account SID (get from [Twilio Console](https://console.twilio.com))
+   - `TWILIO_AUTH_TOKEN` - Your Twilio Auth Token (get from [Twilio Console](https://console.twilio.com))
+   - `VERTEX_AI_API_KEY` - Your Vertex AI API Key (get from [Google Cloud Console](https://console.cloud.google.com/apis/credentials))
+   - `PORT` - Server port (default: `8080`)
+   - `NODE_ENV` - Environment mode (`development` or `production`)
+
+   **Getting Credentials:**
+   - **Twilio Credentials:** Log into [Twilio Console](https://console.twilio.com) → Account Info section
+   - **Vertex AI API Key:** Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create Credentials → API Key
+
+   **Example `.env` file:**
+   ```
+   GOOGLE_CLOUD_PROJECT=white-airship-479502-r1
+   VERTEX_AI_LOCATION=us-central1
+   VERTEX_AI_MODEL=gemini-2.0-flash-exp
+   TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   TWILIO_AUTH_TOKEN=your_auth_token_here
+   VERTEX_AI_API_KEY=AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+   PORT=8080
+   NODE_ENV=development
+   MIDDLEWARE_URL=https://phoneease-middleware-pr6tyivo4a-uc.a.run.app
+   ```
+
+5. Run locally:
 ```bash
 npm start
 ```
 
-Or with auto-reload:
+Or with auto-reload during development:
 ```bash
 npm run dev
 ```
 
-5. Test health endpoint:
+6. Test health endpoint:
 ```bash
 curl http://localhost:8080/health
 ```
+
+7. Verify environment variables loaded:
+```bash
+node -e "require('dotenv').config(); console.log('Project:', process.env.GOOGLE_CLOUD_PROJECT); console.log('Twilio SID:', process.env.TWILIO_ACCOUNT_SID ? 'Loaded' : 'Missing'); console.log('Vertex AI Key:', process.env.VERTEX_AI_API_KEY ? 'Loaded' : 'Missing');"
+```
+
+**Security Note:** Never commit `.env` files to git. The `.gitignore` file ensures they're excluded from version control.
 
 ## Deployment to Google Cloud Run
 
@@ -166,6 +200,67 @@ Expected response:
 
 ## API Endpoints
 
+### POST /api/v1/customers/register
+
+Register a new customer with Twilio sub-account and provisioned phone number.
+
+**Request:**
+```json
+{
+  "business_name": "My Business",
+  "business_phone": "(786) 333-7300",
+  "site_url": "https://mybusiness.com"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "success": true,
+  "site_token": "550e8400-e29b-41d4-a716-446655440000",
+  "phone_number": "+17865551234",
+  "twilio_subaccount_sid": "ACxxxxx",
+  "message": "Customer registered successfully"
+}
+```
+
+**Response (Missing Business Name):**
+```json
+{
+  "success": false,
+  "error": "business_name is required and must be a non-empty string"
+}
+```
+
+**Response (Twilio Service Unavailable):**
+```json
+{
+  "success": false,
+  "error": "Twilio service unavailable",
+  "details": "Failed to create sub-account. Please try again later."
+}
+```
+
+**Response (No Phone Numbers Available):**
+```json
+{
+  "success": false,
+  "error": "Phone number provisioning failed",
+  "details": "No phone numbers available in area code 786"
+}
+```
+
+**Area Code Matching:**
+- If `business_phone` provided: Extracts area code and searches for numbers in that area
+- If `business_phone` not provided: Uses default area code (786 - Miami)
+- If no numbers in preferred area code: Falls back to any available number nationwide
+
+**Supported Phone Formats:**
+- E.164: `+17863337300`
+- Formatted: `(786) 333-7300`
+- Dashed: `786-333-7300`
+- Plain: `7863337300`
+
 ### POST /api/v1/train
 
 Chat with AI for training purposes.
@@ -215,6 +310,7 @@ Chat with AI for training purposes.
 
 ### Collection: `customers`
 
+**Auto-Registered Customers (Legacy):**
 ```javascript
 {
   "site_token": "kv6tFnZDDsxPqXWh54RjnbyNNLbVjdxp",
@@ -227,6 +323,46 @@ Chat with AI for training purposes.
   "updated_at": "2025-12-01T12:30:00.000Z"
 }
 ```
+
+**Fully Registered Customers (via /api/v1/customers/register):**
+```javascript
+{
+  "site_token": "550e8400-e29b-41d4-a716-446655440000",
+  "business_name": "My Business",
+  "business_phone": "(786) 333-7300",
+  "site_url": "https://mybusiness.com",
+  "phone_number": "+17865551234",
+  "twilio_subaccount_sid": "ACxxxxx",
+  "twilio_subaccount_token": "auth_token_here",
+  "calls_limit": 100,
+  "calls_used": 0,
+  "training_limit": 100,
+  "training_used": 5,
+  "billing_period_start": "2025-12-23T12:00:00.000Z",
+  "billing_period_end": "2026-01-22T12:00:00.000Z",
+  "status": "active",
+  "created_at": "2025-12-23T12:00:00.000Z",
+  "updated_at": "2025-12-23T12:30:00.000Z"
+}
+```
+
+**Field Descriptions:**
+- `site_token` - Unique customer identifier (UUID v4)
+- `business_name` - Customer's business name
+- `business_phone` - Customer's phone number (optional, used for area code matching)
+- `site_url` - Customer's website URL (optional)
+- `phone_number` - Provisioned Twilio number in E.164 format
+- `twilio_subaccount_sid` - Twilio sub-account SID
+- `twilio_subaccount_token` - Twilio sub-account auth token
+- `calls_limit` - Maximum calls per billing period (default: 100)
+- `calls_used` - Current call usage counter
+- `training_limit` - Maximum training requests per billing period (default: 100)
+- `training_used` - Current training usage counter
+- `billing_period_start` - Start of 30-day billing cycle
+- `billing_period_end` - End of 30-day billing cycle
+- `status` - Account status: `active`, `suspended`, or `cancelled`
+- `created_at` - Timestamp when customer was created
+- `updated_at` - Timestamp of last update
 
 ## Manually Add Test Customer to Firestore
 
@@ -464,35 +600,14 @@ gcloud run logs read phoneease-middleware --region us-central1 --log-filter="sev
 
 ## Future Endpoints
 
-### POST /api/v1/register (Planned)
-
-Customer registration during setup wizard.
-
-**Request:**
-```json
-{
-  "site_token": "xyz",
-  "business_name": "Joe's Plumbing"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "phone_number": "+15551234567",
-  "customer_id": "cust_abc123"
-}
-```
-
-### POST /api/v1/twilio/voice (Planned)
+### POST /api/v1/webhooks/twilio/voice (Planned)
 
 Handle incoming phone calls via Twilio webhook.
 
 **Request:** TwiML from Twilio
 **Response:** TwiML for AI response
 
-### POST /api/v1/twilio/sms (Planned)
+### POST /api/v1/webhooks/twilio/sms (Planned)
 
 Handle incoming SMS messages via Twilio webhook.
 

@@ -11,6 +11,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const trainRouter = require('./routes/train');
+const chatRouter = require('./routes/chat');
+const registerRouter = require('./routes/register');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -37,6 +39,8 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/v1/train', trainRouter);
+app.use('/api/v1/chat', chatRouter);
+app.use('/api/v1/customers', registerRouter);
 
 // 404 handler
 app.use((req, res) => {

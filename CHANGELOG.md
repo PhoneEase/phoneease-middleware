@@ -10,6 +10,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Using 0.x.x format for pre-release development phase.
 Version 1.0.0 will represent first public production release.
 
+## [0.9.2] - 2025-12-23
+
+### Added
+- **Customer Registration Endpoint**: POST /api/v1/customers/register
+  - Creates Twilio sub-accounts for customers
+  - Provisions phone numbers with area code matching
+  - Stores complete customer data in Firestore
+  - Returns site_token and phone_number for configuration
+  - Generates unique site tokens using UUID v4
+
+### Added - Twilio Service Module
+- Created services/twilio.js for Twilio API integration
+  - `createSubAccount(businessName)` - Creates Twilio sub-accounts
+  - `provisionPhoneNumber(subAccountSid, areaCode)` - Provisions phone numbers with area code matching
+  - `deleteSubAccount(subAccountSid)` - Rollback operation for failed registrations
+  - `extractAreaCode(phoneNumber)` - Parses area codes from various phone number formats
+  - Configures webhook URLs for voice and SMS automatically
+  - Default area code: 786 (Miami) when no preference provided
+  - Fallback to nationwide search if preferred area code unavailable
+
+### Changed - Customer Schema
+- Extended Firestore customer schema with phone-related fields:
+  - `phone_number` - Provisioned phone number in E.164 format
+  - `twilio_subaccount_sid` - Sub-account SID for customer
+  - `twilio_subaccount_token` - Sub-account auth token
+  - `calls_limit` - Maximum calls per billing period (default: 100)
+  - `calls_used` - Current call usage counter (default: 0)
+  - `billing_period_start` - Start of 30-day billing cycle
+  - `billing_period_end` - End of 30-day billing cycle
+  - `status` - Account status (active/suspended/cancelled)
+  - `site_url` - Customer's website URL
+  - `business_phone` - Customer's business phone (used for area code matching)
+- Added `createCustomer(siteToken, customerData)` function to firestore service
+- Maintained backward compatibility with existing auto-registration via registerCustomer()
+
+### Fixed
+- Comprehensive error handling for Twilio API failures
+  - Returns 503 Service Unavailable when Twilio API fails
+  - Returns 400 Bad Request for validation errors
+  - Returns 500 Internal Server Error for database failures
+- Rollback logic for partial registration failures
+  - Automatically deletes sub-account if phone provisioning fails
+  - Automatically deletes sub-account if Firestore storage fails
+  - Best-effort cleanup on unexpected errors
+- Area code extraction supports multiple phone formats:
+  - E.164: +17863337300
+  - Formatted: (786) 333-7300
+  - Dashed: 786-333-7300
+  - Plain: 7863337300
+
+### Technical
+- Webhook URLs automatically configured on provisioned numbers:
+  - Voice: `{MIDDLEWARE_URL}/api/v1/webhooks/twilio/voice`
+  - SMS: `{MIDDLEWARE_URL}/api/v1/webhooks/twilio/sms`
+- Billing period set to 30 days from registration
+- Customer status defaults to 'active'
+- All timestamps stored in ISO 8601 format
+- Sub-account friendly names set to business name for easy identification
+
 ## [0.9.1] - 2025-12-23
 
 ### Added

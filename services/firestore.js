@@ -113,6 +113,27 @@ async function incrementTrainingUsage(customerId) {
 }
 
 /**
+ * Create a customer with full registration data
+ *
+ * @param {string} siteToken - Unique customer identifier
+ * @param {object} customerData - Complete customer data object
+ * @returns {Promise<void>}
+ */
+async function createCustomer(siteToken, customerData) {
+  try {
+    console.log(`Firestore: Creating customer with site_token: ${siteToken}`);
+
+    const customerRef = firestore.collection(CUSTOMERS_COLLECTION).doc(siteToken);
+    await customerRef.set(customerData);
+
+    console.log(`Firestore: Customer created successfully - ${customerData.business_name}`);
+  } catch (error) {
+    console.error('Firestore: Error creating customer:', error);
+    throw error;
+  }
+}
+
+/**
  * Check if customer has exceeded training limit
  *
  * @param {Object} customer - Customer document
@@ -125,6 +146,7 @@ function hasExceededTrainingLimit(customer) {
 module.exports = {
   getCustomer,
   registerCustomer,
+  createCustomer,
   incrementTrainingUsage,
   hasExceededTrainingLimit,
 };
