@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Using 0.x.x format for pre-release development phase.
 Version 1.0.0 will represent first public production release.
 
+## [0.9.1] - 2025-12-23
+
+### Added
+- Twilio SDK dependency (twilio) for Phase 2 phone infrastructure
+- UUID package (uuid) for secure token generation
+- Preparing for customer registration endpoint implementation
+
+### Changed
+- Updated npm dependencies to support sub-account creation and phone provisioning
+- Ready for Phase 2 phone number management features
+
 ## [0.9.0] - 2025-12-23
 
 ### Changed
