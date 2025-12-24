@@ -253,6 +253,114 @@ gcloud run logs tail phoneease-middleware \
 Or view in Cloud Console:
 https://console.cloud.google.com/run/detail/us-central1/phoneease-middleware/logs
 
+## Updating Environment Variables
+
+Cloud Run services can have environment variables updated without redeploying code. This is useful for credential rotation, configuration changes, or updating API keys.
+
+### View Current Environment Variables
+
+To see all currently set environment variables:
+
+```bash
+gcloud run services describe phoneease-middleware \
+  --region us-central1 \
+  --format="yaml(spec.template.spec.containers[0].env)"
+```
+
+### Update Environment Variables
+
+Use the `--update-env-vars` flag to add or update environment variables. Cloud Run will create a new revision and perform a rolling update with zero downtime.
+
+**Add/Update specific variables:**
+```bash
+gcloud run services update phoneease-middleware \
+  --region us-central1 \
+  --update-env-vars TWILIO_AUTH_TOKEN=your_new_token,VERTEX_AI_API_KEY=your_new_key
+```
+
+**Windows (use ^ for line continuation):**
+```cmd
+gcloud run services update phoneease-middleware ^
+  --region us-central1 ^
+  --update-env-vars TWILIO_AUTH_TOKEN=your_new_token,VERTEX_AI_API_KEY=your_new_key
+```
+
+### Remove Environment Variables
+
+To remove environment variables:
+
+```bash
+gcloud run services update phoneease-middleware \
+  --region us-central1 \
+  --remove-env-vars VARIABLE_NAME_TO_REMOVE
+```
+
+### Replace All Environment Variables
+
+To set all environment variables at once (replaces all existing):
+
+```bash
+gcloud run services update phoneease-middleware \
+  --region us-central1 \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=white-airship-479502-r1,VERTEX_AI_LOCATION=us-central1,VERTEX_AI_MODEL=gemini-2.0-flash-exp,TWILIO_AUTH_TOKEN=your_token,VERTEX_AI_API_KEY=your_key,TWILIO_ACCOUNT_SID=your_sid"
+```
+
+### Credential Rotation Best Practices
+
+When rotating security credentials:
+
+1. **Generate new credentials** in the respective service (Twilio, Google Cloud)
+2. **Update Cloud Run** with new credentials using the update command
+3. **Verify deployment** by checking environment variables and testing endpoints
+4. **Test service functionality** to ensure new credentials work
+5. **Revoke old credentials** in the respective service
+6. **Never commit credentials to git** - use environment variables only
+
+**Example: Complete credential rotation workflow:**
+
+```bash
+# Step 1: Update Cloud Run with new credentials
+gcloud run services update phoneease-middleware \
+  --region us-central1 \
+  --update-env-vars TWILIO_AUTH_TOKEN=new_token,TWILIO_ACCOUNT_SID=new_sid
+
+# Step 2: Verify environment variables were updated
+gcloud run services describe phoneease-middleware \
+  --region us-central1 \
+  --format="yaml(spec.template.spec.containers[0].env)"
+
+# Step 3: Test health endpoint
+curl https://phoneease-middleware-375589245036.us-central1.run.app/health
+
+# Step 4: Check service logs for errors
+gcloud run logs read phoneease-middleware \
+  --region us-central1 \
+  --limit 20
+
+# Step 5: If successful, revoke old credentials in Twilio dashboard
+```
+
+### Important Notes
+
+- Environment variable updates trigger a new deployment automatically
+- Cloud Run performs rolling updates with zero downtime
+- Previous revisions retain their original environment variables
+- Environment variables are stored securely by Cloud Run
+- For highly sensitive data, consider using Google Secret Manager instead of environment variables
+
+### Current Environment Variables
+
+The PhoneEase middleware requires these environment variables:
+
+| Variable | Description | Source |
+|----------|-------------|--------|
+| GOOGLE_CLOUD_PROJECT | GCP project ID | Set during deployment |
+| VERTEX_AI_LOCATION | Vertex AI region | Set during deployment |
+| VERTEX_AI_MODEL | Vertex AI model name | Set during deployment |
+| TWILIO_ACCOUNT_SID | Twilio account identifier | Twilio Console |
+| TWILIO_AUTH_TOKEN | Twilio authentication token | Twilio Console |
+| VERTEX_AI_API_KEY | Google Cloud API key for Vertex AI | GCP Console |
+
 ## Redeployment
 
 To redeploy after making code changes:

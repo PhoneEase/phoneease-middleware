@@ -58,10 +58,7 @@ async function provisionPhoneNumber(subAccountSid, areaCode = null) {
 
     console.log(`Twilio: Searching for phone numbers in area code: ${targetAreaCode}`);
 
-    // Create sub-account client
-    const subClient = twilio(subAccountSid, authToken);
-
-    // Search for available phone numbers
+    // Search for available phone numbers using master account
     let availableNumbers = await client.availablePhoneNumbers('US')
       .local
       .list({ areaCode: targetAreaCode, limit: 5 });
@@ -86,15 +83,18 @@ async function provisionPhoneNumber(subAccountSid, areaCode = null) {
     const voiceUrl = `${middlewareUrl}/api/v1/webhooks/twilio/voice`;
     const smsUrl = `${middlewareUrl}/api/v1/webhooks/twilio/sms`;
 
-    // Purchase number using sub-account client
-    const purchasedNumber = await subClient.incomingPhoneNumbers.create({
-      phoneNumber: selectedNumber,
-      voiceUrl: voiceUrl,
-      voiceMethod: 'POST',
-      smsUrl: smsUrl,
-      smsMethod: 'POST',
-      friendlyName: `PhoneEase - ${subAccountSid}`
-    });
+    // Purchase number for sub-account using master account client
+    // Use client.api.accounts(subAccountSid) to scope the purchase to the sub-account
+    const purchasedNumber = await client.api.accounts(subAccountSid)
+      .incomingPhoneNumbers
+      .create({
+        phoneNumber: selectedNumber,
+        voiceUrl: voiceUrl,
+        voiceMethod: 'POST',
+        smsUrl: smsUrl,
+        smsMethod: 'POST',
+        friendlyName: `PhoneEase - ${subAccountSid}`
+      });
 
     console.log(`Twilio: Phone number provisioned - SID: ${purchasedNumber.sid}`);
     console.log(`Twilio: Voice webhook: ${voiceUrl}`);
