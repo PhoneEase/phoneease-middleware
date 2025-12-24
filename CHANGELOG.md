@@ -10,6 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Using 0.x.x format for pre-release development phase.
 Version 1.0.0 will represent first public production release.
 
+## [0.9.4] - 2025-12-24
+
+### Changed - Call Tracking Schema Improvement
+- **Replaced ambiguous `calls_used` with clear billable vs filtered tracking**
+- Added `billable_calls_used` - Counts toward customer's limit
+- Added `filtered_calls` - Spam/bots/silent calls (FREE - don't count)
+- Added `total_calls` - All calls for analytics
+- Added `spam_calls` - Spam/robocalls (subset of filtered)
+- Added `silent_calls` - Silent/abandoned calls (subset of filtered)
+- Added `test_calls` - Owner testing (FREE)
+
+### Fixed
+- **Billing Fairness**: Customers no longer charged for spam/bot calls
+- **Schema Clarity**: Clear distinction between billable and free calls
+- **Webhook Ready**: Proper tracking foundation for webhook implementation
+
+### Migration
+- New customers automatically get new schema fields
+- Existing customers: Fields will be added on next update (Firestore schema-less)
+- No breaking changes - backward compatible
+
 ## [0.9.2] - 2025-12-23
 
 ### Added

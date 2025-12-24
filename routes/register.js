@@ -116,16 +116,33 @@ router.post('/register', async (req, res) => {
       business_name: business_name.trim(),
       business_phone: business_phone || null,
       site_url: site_url || null,
+
+      // Phone configuration
       phone_number: phoneNumber,
       twilio_subaccount_sid: subAccount.accountSid,
       twilio_subaccount_token: subAccount.authToken,
+
+      // Call tracking - Billable vs Filtered
       calls_limit: 100,
-      calls_used: 0,
+      billable_calls_used: 0,
+      filtered_calls: 0,
+      total_calls: 0,
+      spam_calls: 0,
+      silent_calls: 0,
+      test_calls: 0,
+
+      // Training tracking
       training_limit: 100,
       training_used: 0,
+
+      // Billing period
       billing_period_start: now,
       billing_period_end: billingPeriodEnd,
+
+      // Status
       status: 'active',
+
+      // Timestamps
       created_at: now,
       updated_at: now
     };

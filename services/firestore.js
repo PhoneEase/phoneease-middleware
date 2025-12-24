@@ -60,13 +60,44 @@ async function registerCustomer(siteToken, businessName, additionalInfo = {}) {
   try {
     console.log(`Firestore: Registering new customer: ${businessName}`);
 
+    /**
+     * Call Tracking Schema:
+     *
+     * BILLABLE CALLS (count toward limit):
+     * - billable_calls_used: Real customer calls that consume quota
+     * - Limited by: calls_limit (default: 100 per billing period)
+     *
+     * FILTERED CALLS (FREE - don't count):
+     * - spam_calls: Robocalls, telemarketers identified by AI
+     * - silent_calls: Calls with no speech detected
+     * - test_calls: Owner testing their phone system
+     * - Total filtered: filtered_calls = spam_calls + silent_calls + test_calls
+     *
+     * ANALYTICS:
+     * - total_calls: billable_calls_used + filtered_calls
+     *
+     * This ensures customers only pay for legitimate calls.
+     */
     const customerData = {
       site_token: siteToken,
       business_name: businessName,
       business_hours: additionalInfo.business_hours || null,
       business_description: additionalInfo.business_description || null,
+
+      // Call tracking - Billable vs Filtered
+      calls_limit: 100,                // Maximum billable calls per billing period
+      billable_calls_used: 0,          // Calls that count toward limit
+      filtered_calls: 0,               // Spam/bots/silent calls (FREE)
+      total_calls: 0,                  // All calls for analytics
+      spam_calls: 0,                   // Spam/robocalls (subset of filtered)
+      silent_calls: 0,                 // Silent/abandoned calls (subset of filtered)
+      test_calls: 0,                   // Owner test calls (FREE)
+
+      // Training tracking
       training_used: 0,
-      training_limit: 100, // Default training limit
+      training_limit: 100,             // Default training limit
+
+      // Timestamps
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

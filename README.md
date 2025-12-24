@@ -327,42 +327,100 @@ Chat with AI for training purposes.
 **Fully Registered Customers (via /api/v1/customers/register):**
 ```javascript
 {
+  // Identity
   "site_token": "550e8400-e29b-41d4-a716-446655440000",
   "business_name": "My Business",
   "business_phone": "(786) 333-7300",
   "site_url": "https://mybusiness.com",
+
+  // Phone Configuration
   "phone_number": "+17865551234",
   "twilio_subaccount_sid": "ACxxxxx",
   "twilio_subaccount_token": "auth_token_here",
+
+  // Call Tracking - Billable vs Filtered
   "calls_limit": 100,
-  "calls_used": 0,
+  "billable_calls_used": 0,
+  "filtered_calls": 0,
+  "total_calls": 0,
+  "spam_calls": 0,
+  "silent_calls": 0,
+  "test_calls": 0,
+
+  // Training Tracking
   "training_limit": 100,
   "training_used": 5,
+
+  // Billing Period
   "billing_period_start": "2025-12-23T12:00:00.000Z",
   "billing_period_end": "2026-01-22T12:00:00.000Z",
+
+  // Status
   "status": "active",
+
+  // Timestamps
   "created_at": "2025-12-23T12:00:00.000Z",
   "updated_at": "2025-12-23T12:30:00.000Z"
 }
 ```
 
 **Field Descriptions:**
+
+*Identity:*
 - `site_token` - Unique customer identifier (UUID v4)
 - `business_name` - Customer's business name
 - `business_phone` - Customer's phone number (optional, used for area code matching)
 - `site_url` - Customer's website URL (optional)
+
+*Phone Configuration:*
 - `phone_number` - Provisioned Twilio number in E.164 format
 - `twilio_subaccount_sid` - Twilio sub-account SID
 - `twilio_subaccount_token` - Twilio sub-account auth token
-- `calls_limit` - Maximum calls per billing period (default: 100)
-- `calls_used` - Current call usage counter
+
+*Call Tracking - Billable vs Filtered:*
+- `calls_limit` - Maximum billable calls per billing period (default: 100)
+- `billable_calls_used` - Calls that count toward limit (default: 0)
+- `filtered_calls` - Spam/bots/silent calls - FREE (default: 0)
+- `total_calls` - All calls for analytics (default: 0)
+- `spam_calls` - Spam/robocalls (subset of filtered, default: 0)
+- `silent_calls` - Silent/abandoned calls (subset of filtered, default: 0)
+- `test_calls` - Owner test calls - FREE (default: 0)
+
+*Training Tracking:*
 - `training_limit` - Maximum training requests per billing period (default: 100)
-- `training_used` - Current training usage counter
+- `training_used` - Current training usage counter (default: 0)
+
+*Billing Period:*
 - `billing_period_start` - Start of 30-day billing cycle
 - `billing_period_end` - End of 30-day billing cycle
+
+*Status:*
 - `status` - Account status: `active`, `suspended`, or `cancelled`
+
+*Timestamps:*
 - `created_at` - Timestamp when customer was created
 - `updated_at` - Timestamp of last update
+
+---
+
+### Call Billing Logic
+
+PhoneEase uses fair billing that only charges for legitimate customer calls:
+
+**Billable Calls** (count toward `calls_limit`):
+- Real customer calls with actual conversations
+- Incrementing `billable_calls_used`
+- When limit reached → call rejected
+
+**Filtered Calls** (FREE - don't count toward limit):
+- **Spam/Robocalls**: Identified by AI as spam/telemarketing
+- **Silent Calls**: No speech detected within timeout
+- **Test Calls**: Owner testing their phone system
+- These increment `filtered_calls` but NOT `billable_calls_used`
+
+**Analytics:**
+- `total_calls` = `billable_calls_used` + `filtered_calls`
+- Helps customers understand call patterns without being charged for spam
 
 ## Manually Add Test Customer to Firestore
 
