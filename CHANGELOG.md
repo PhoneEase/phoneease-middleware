@@ -129,7 +129,7 @@ Twilio: This is expected when preferred area code has no available numbers
   - https://phoneease-middleware-pr6tyivo4a-uc.a.run.app (legacy)
   - https://phoneease-middleware-375589245036.us-central1.run.app (current)
 - Test customer created: site_token f95f89bc-e180-41b0-92f8-f32b398e7ebc
-- Twilio sub-account: AC2d147e561423b850c8348baac72a67e7
+- Twilio sub-account: AC[REDACTED] (test account)
 
 ## [0.9.4] - 2025-12-24
 
