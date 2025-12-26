@@ -127,8 +127,8 @@ async function provisionPhoneNumber(subAccountSid, siteUrl, areaCode = null) {
     // Configure webhook URLs to customer's WordPress site
     // Remove trailing slash from siteUrl if present
     const cleanSiteUrl = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
-    const voiceUrl = `${cleanSiteUrl}/wp-json/phoneease/v1/webhook/voice`;
-    const statusCallbackUrl = `${cleanSiteUrl}/wp-json/phoneease/v1/webhook/call-status`;
+    const voiceUrl = `${cleanSiteUrl}/wp-json/phoneease/v1/call`;
+    const statusCallbackUrl = `${cleanSiteUrl}/wp-json/phoneease/v1/call/status`;
 
     // Purchase number for sub-account using master account client
     // Use client.api.accounts(subAccountSid) to scope the purchase to the sub-account
