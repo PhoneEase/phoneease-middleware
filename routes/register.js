@@ -57,13 +57,23 @@ router.post('/register', async (req, res) => {
     console.log(`Generated site_token: ${siteToken}`);
 
     // 3. Extract area code from business_phone if provided
+    console.log('=== AREA CODE PROCESSING ===');
     let areaCode = null;
     if (business_phone) {
+      console.log(`Business phone provided: ${business_phone}`);
       areaCode = twilioService.extractAreaCode(business_phone);
       if (areaCode) {
-        console.log(`Using area code from business_phone: ${areaCode}`);
+        console.log(`✓ Area code extracted successfully: ${areaCode}`);
+        console.log(`Will search Twilio for numbers in ${areaCode} area code`);
+      } else {
+        console.log(`⚠️  Could not extract area code from business_phone: ${business_phone}`);
+        console.log(`Will use default area code (786) instead`);
       }
+    } else {
+      console.log('⚠️  No business_phone provided in request');
+      console.log('Will use default area code (786)');
     }
+    console.log('=== AREA CODE PROCESSING COMPLETE ===');
 
     // 4. Create Twilio sub-account
     console.log('Creating Twilio sub-account...');

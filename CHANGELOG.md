@@ -10,6 +10,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Using 0.x.x format for pre-release development phase.
 Version 1.0.0 will represent first public production release.
 
+## [0.9.6] - 2025-12-25
+
+### Improved - Enhanced Area Code Matching Logging
+
+**Problem:**
+Difficult to debug area code matching issues when provisioned phone numbers don't match business phone area code. No visibility into:
+- What area code was extracted from business_phone
+- What parameters were sent to Twilio API
+- How many numbers were available in requested area code
+- Which specific number was selected and why
+- When/why fallback to nationwide search was triggered
+
+**Solution:**
+Added comprehensive logging throughout area code extraction and phone provisioning process.
+
+**Enhanced Functions:**
+
+1. **extractAreaCode() - Detailed Input/Output Logging:**
+   - Logs input phone number and format
+   - Shows digit extraction process
+   - Identifies format (10-digit vs 11-digit with country code)
+   - Displays formatted breakdown: (XXX) XXX-XXXX
+   - Clear success/failure indicators
+
+2. **provisionPhoneNumber() - Complete Provisioning Flow:**
+   - Logs target area code and source (extracted vs default)
+   - Shows Twilio API search parameters
+   - Lists all available numbers found (up to 5)
+   - Shows locality and region for each option
+   - Indicates when fallback is triggered and why
+   - Compares selected number's area code to requested
+   - Warns about area code mismatches with explanation
+
+3. **Registration Endpoint - Request Processing:**
+   - Logs business_phone input value
+   - Shows area code extraction result
+   - Indicates when default area code (786) is used
+   - Clear boundaries for area code processing section
+
+**Example Console Output:**
+
+```
+=== AREA CODE PROCESSING ===
+Business phone provided: (305) 693-3949
+=== AREA CODE EXTRACTION START ===
+Twilio: Input phone number: "(305) 693-3949"
+Twilio: Digits after removing non-numeric: "3056933949"
+Twilio: Total digits: 10
+Twilio: Format detected: 10 digits (no country code)
+Twilio: ✓ Extracted area code: 305
+Twilio: Full number breakdown: (305) 693-3949
+=== AREA CODE EXTRACTION SUCCESS ===
+✓ Area code extracted successfully: 305
+Will search Twilio for numbers in 305 area code
+=== AREA CODE PROCESSING COMPLETE ===
+
+=== TWILIO PHONE PROVISIONING START ===
+Twilio: Target area code: 305 (extracted from business phone)
+Twilio: API Search Parameters: { country: 'US', type: 'local', areaCode: '305', limit: 5 }
+Twilio: Found 12 available numbers in area code 305
+  Option 1: +13055551234 (Miami, FL)
+  Option 2: +13055552345 (Miami, FL)
+  Option 3: +13055553456 (Homestead, FL)
+Twilio: ✓ SELECTED: +13055551234 (Miami, FL)
+Twilio: ✓ Area code match: 305 matches requested 305
+```
+
+**Fallback Example:**
+
+```
+Twilio: Found 0 available numbers in area code 786
+Twilio: ⚠️  FALLBACK TRIGGERED - No numbers available in area code 786
+Twilio: Reason: Twilio inventory for 786 is empty or area code doesn't exist
+Twilio: Searching nationwide without area code filter...
+Twilio: Found 43 available numbers nationwide
+  Option 1: +13055559876 (Miami, FL)
+  Option 2: +17863334567 (Miami, FL)
+  Option 3: +19547778888 (Fort Lauderdale, FL)
+Twilio: ✓ SELECTED: +13055559876 (Miami, FL)
+Twilio: ⚠️  Area code mismatch: Requested 786, got 305
+Twilio: This is expected when preferred area code has no available numbers
+```
+
+**Benefits:**
+- Easy debugging of area code matching issues
+- Visibility into Twilio inventory availability
+- Clear understanding of why specific numbers were selected
+- Immediate identification of fallback scenarios
+- Helps with troubleshooting customer complaints about area code mismatches
+
+**Testing:**
+- Business phone (786) 333-7300 → Logs show 786 extraction and Twilio search
+- Business phone (305) 555-1234 → Logs show 305 extraction and match
+- Business phone (212) 555-9999 → Logs show 212 extraction and fallback (if needed)
+- No business phone → Logs show default 786 usage
+
+**Files Modified:**
+- `services/twilio.js` - Enhanced extractAreaCode() and provisionPhoneNumber()
+- `routes/register.js` - Added area code processing logging
+
 ## [0.9.5] - 2025-12-25
 
 ### Fixed - CRITICAL: Phone Provisioning Authentication
