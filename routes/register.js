@@ -23,7 +23,7 @@ const firestoreService = require('../services/firestore');
  * {
  *   business_name: string (required)
  *   business_phone: string (optional) - Used for area code matching
- *   site_url: string (optional)
+ *   site_url: string (required) - Customer's WordPress site URL
  * }
  *
  * Response:
@@ -49,6 +49,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'business_name is required and must be a non-empty string'
+      });
+    }
+
+    // Validate site_url (required for webhook configuration)
+    if (!site_url || typeof site_url !== 'string' || !site_url.startsWith('http')) {
+      return res.status(400).json({
+        success: false,
+        error: 'site_url is required and must be a valid URL (https://yourdomain.com)'
       });
     }
 
@@ -96,6 +104,7 @@ router.post('/register', async (req, res) => {
     try {
       const phoneData = await twilioService.provisionPhoneNumber(
         subAccount.accountSid,
+        site_url,
         areaCode
       );
       phoneNumber = phoneData.phoneNumber;

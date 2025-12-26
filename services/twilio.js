@@ -48,11 +48,17 @@ async function createSubAccount(businessName) {
 /**
  * Provision a phone number for a customer
  * @param {string} subAccountSid - Sub-account SID to assign number to
+ * @param {string} siteUrl - Customer's WordPress site URL for webhooks
  * @param {string} areaCode - Preferred area code (e.g., "786", "305")
  * @returns {Promise<{phoneNumber: string, numberSid: string}>}
  */
-async function provisionPhoneNumber(subAccountSid, areaCode = null) {
+async function provisionPhoneNumber(subAccountSid, siteUrl, areaCode = null) {
   try {
+    // Validate siteUrl parameter
+    if (!siteUrl || typeof siteUrl !== 'string' || !siteUrl.startsWith('http')) {
+      throw new Error('siteUrl is required and must be a valid URL (https://yourdomain.com)');
+    }
+
     // Use default area code if none provided
     const targetAreaCode = areaCode || DEFAULT_AREA_CODE;
     const usingDefault = !areaCode;
@@ -60,6 +66,7 @@ async function provisionPhoneNumber(subAccountSid, areaCode = null) {
     console.log('=== TWILIO PHONE PROVISIONING START ===');
     console.log(`Twilio: Target area code: ${targetAreaCode} ${usingDefault ? '(default - no business phone provided)' : '(extracted from business phone)'}`);
     console.log(`Twilio: Sub-account SID: ${subAccountSid}`);
+    console.log(`Twilio: Site URL: ${siteUrl}`);
 
     // Search for available phone numbers using master account
     console.log(`Twilio: API Search Parameters: { country: 'US', type: 'local', areaCode: '${targetAreaCode}', limit: 5 }`);
@@ -117,9 +124,11 @@ async function provisionPhoneNumber(subAccountSid, areaCode = null) {
       console.log(`Twilio: ✓ Area code match: ${selectedAreaCode} matches requested ${targetAreaCode}`);
     }
 
-    // Configure webhook URLs
-    const voiceUrl = `${middlewareUrl}/api/v1/webhooks/twilio/voice`;
-    const smsUrl = `${middlewareUrl}/api/v1/webhooks/twilio/sms`;
+    // Configure webhook URLs to customer's WordPress site
+    // Remove trailing slash from siteUrl if present
+    const cleanSiteUrl = siteUrl.endsWith('/') ? siteUrl.slice(0, -1) : siteUrl;
+    const voiceUrl = `${cleanSiteUrl}/wp-json/phoneease/v1/webhook/voice`;
+    const statusCallbackUrl = `${cleanSiteUrl}/wp-json/phoneease/v1/webhook/call-status`;
 
     // Purchase number for sub-account using master account client
     // Use client.api.accounts(subAccountSid) to scope the purchase to the sub-account
@@ -129,14 +138,14 @@ async function provisionPhoneNumber(subAccountSid, areaCode = null) {
         phoneNumber: selectedNumber,
         voiceUrl: voiceUrl,
         voiceMethod: 'POST',
-        smsUrl: smsUrl,
-        smsMethod: 'POST',
+        statusCallback: statusCallbackUrl,
+        statusCallbackMethod: 'POST',
         friendlyName: `PhoneEase - ${subAccountSid}`
       });
 
     console.log(`Twilio: Phone number provisioned - SID: ${purchasedNumber.sid}`);
     console.log(`Twilio: Voice webhook: ${voiceUrl}`);
-    console.log(`Twilio: SMS webhook: ${smsUrl}`);
+    console.log(`Twilio: Status callback: ${statusCallbackUrl}`);
 
     return {
       phoneNumber: purchasedNumber.phoneNumber, // E.164 format
