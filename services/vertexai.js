@@ -109,39 +109,84 @@ CRITICAL RULES:
  * Call Gemini API with prompt
  *
  * @param {string} prompt - The prompt to send
- * @returns {Promise<Object>} Response with text and tokens
+ * @returns {Promise<Object>} Response with text, tokens, and response time
  */
 async function callGemini(prompt) {
-  try {
-    console.log('Vertex AI: Calling Gemini model:', MODEL_NAME);
-    console.log('Vertex AI: Prompt:', prompt);
+  console.log('=== VERTEX AI API CALL ===');
+  const startTime = Date.now();
 
-    // Get the generative model
+  try {
+    console.log('├─ Model:', MODEL_NAME);
+    console.log('├─ Prompt length:', prompt.length, 'characters');
+
+    // Model initialization
+    const modelInitStart = Date.now();
     const model = vertexAI.getGenerativeModel({
       model: MODEL_NAME,
+      generationConfig: {
+        maxOutputTokens: 150,      // Receptionist responses should be concise (1-2 sentences)
+        temperature: 0.7,           // Lower = faster, more consistent responses
+        topP: 0.9,                  // Slightly more focused sampling
+        candidateCount: 1,          // Only generate 1 response
+      },
+      safetySettings: [
+        {
+          category: 'HARM_CATEGORY_HATE_SPEECH',
+          threshold: 'BLOCK_ONLY_HIGH',
+        },
+        {
+          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          threshold: 'BLOCK_ONLY_HIGH',
+        },
+        {
+          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          threshold: 'BLOCK_ONLY_HIGH',
+        },
+        {
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_ONLY_HIGH',
+        },
+      ],
     });
+    const modelInitTime = Date.now() - modelInitStart;
+    console.log(`├─ Model initialization: ${modelInitTime}ms`);
 
-    // Generate content
+    // API call
+    const apiStart = Date.now();
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
+    const apiTime = Date.now() - apiStart;
+    console.log(`├─ Vertex AI API call: ${apiTime}ms`);
 
+    // Response processing
+    const processingStart = Date.now();
     const response = result.response;
     const text = response.candidates[0].content.parts[0].text;
-
-    // Extract token usage (if available)
     const tokensUsed = response.usageMetadata?.totalTokenCount || 0;
+    const processingTime = Date.now() - processingStart;
+    console.log(`├─ Response processing: ${processingTime}ms`);
 
-    console.log('Vertex AI: Response received');
-    console.log('Vertex AI: Response text:', text);
-    console.log('Vertex AI: Tokens used:', tokensUsed);
+    const totalTime = Date.now() - startTime;
+    console.log(`├─ Response length: ${text.length} characters`);
+    console.log(`├─ Tokens used: ${tokensUsed}`);
+    console.log(`└─ TOTAL TIME: ${totalTime}ms`);
+
+    // Performance warning
+    if (totalTime > 3000) {
+      console.log(`⚠️  WARNING: Slow response (${totalTime}ms) - target is <2500ms`);
+    } else if (totalTime < 2500) {
+      console.log(`✓ Performance target met (${totalTime}ms < 2500ms)`);
+    }
 
     return {
       text,
       tokensUsed,
+      responseTimeMs: totalTime,
     };
   } catch (error) {
-    console.error('Vertex AI: Error calling Gemini:', error);
+    const totalTime = Date.now() - startTime;
+    console.log(`└─ ERROR after ${totalTime}ms: ${error.message}`);
     throw error;
   }
 }
@@ -168,18 +213,42 @@ async function generateTrainingResponse(businessInfo, message) {
  * @returns {Promise<Object>} AI response with text and tokens
  */
 async function generateConversationResponse(businessInfo, message, conversationHistory = [], systemPrompt = null) {
+  // PERFORMANCE OPTIMIZATION: Only use last 5 turns to reduce latency
+  // Each turn = customer message + AI response = 2 messages
+  // 5 turns = 10 messages maximum
+  const MAX_HISTORY_TURNS = 5;
+  const maxMessages = MAX_HISTORY_TURNS * 2;
+
+  const recentHistory = conversationHistory.length > maxMessages
+    ? conversationHistory.slice(-maxMessages)
+    : conversationHistory;
+
+  if (conversationHistory.length > maxMessages) {
+    console.log(`Vertex AI: Conversation history optimization - Using last ${recentHistory.length} messages (${conversationHistory.length} total, ${conversationHistory.length - recentHistory.length} truncated)`);
+  }
+
   let prompt;
 
   if (systemPrompt) {
     console.log('Vertex AI: Using WordPress system prompt (includes caller ID, detailed instructions)');
 
-    // WordPress system prompt is the instruction set - we still need to append conversation history and current message
-    prompt = systemPrompt;
+    // PERFORMANCE OPTIMIZATION: Trim excessive whitespace from system prompt to reduce token count
+    const optimizedPrompt = systemPrompt
+      .replace(/\n{3,}/g, '\n\n')      // Replace 3+ newlines with 2
+      .replace(/\s{2,}/g, ' ')         // Replace multiple spaces with 1
+      .trim();
 
-    // Add conversation history if provided
-    if (conversationHistory && conversationHistory.length > 0) {
+    if (systemPrompt.length !== optimizedPrompt.length) {
+      console.log(`Vertex AI: System prompt optimization - Size reduced: ${systemPrompt.length} → ${optimizedPrompt.length} chars (${systemPrompt.length - optimizedPrompt.length} chars saved)`);
+    }
+
+    // WordPress system prompt is the instruction set - we still need to append conversation history and current message
+    prompt = optimizedPrompt;
+
+    // Add conversation history if provided (using optimized recent history)
+    if (recentHistory && recentHistory.length > 0) {
       prompt += '\n\nConversation so far:';
-      conversationHistory.forEach((turn) => {
+      recentHistory.forEach((turn) => {
         const speaker = turn.role === 'user' ? 'Customer' : 'You';
         prompt += `\n${speaker}: ${turn.content}`;
       });
@@ -191,7 +260,7 @@ async function generateConversationResponse(businessInfo, message, conversationH
   } else {
     console.log('Vertex AI: Using fallback buildConversationPrompt (simple prompt - no caller ID)');
     // Fall back to the simple buildConversationPrompt for backward compatibility
-    prompt = buildConversationPrompt(businessInfo, message, conversationHistory);
+    prompt = buildConversationPrompt(businessInfo, message, recentHistory);
   }
 
   return await callGemini(prompt);

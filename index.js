@@ -37,6 +37,26 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Performance monitoring endpoint
+app.get('/api/v1/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    service: 'phoneease-middleware',
+    version: '0.9.13',
+    performance: {
+      target_response_time: '1500-2500ms',
+      vertex_ai_model: 'gemini-2.0-flash-exp',
+      optimizations: {
+        max_history_turns: 5,
+        max_output_tokens: 150,
+        temperature: 0.7,
+        top_p: 0.9,
+      },
+    },
+  });
+});
+
 // API Routes
 app.use('/api/v1/train', trainRouter);
 app.use('/api/v1/chat', chatRouter);

@@ -1,7 +1,7 @@
 {
   "name": "phoneease-middleware",
-  "version": "0.9.6",
-  "description": "PhoneEase Cloud Run Middleware - Twilio & Vertex AI Integration",
+  "version": "0.9.13",
+  "description": "PhoneEase Cloud Run Middleware - Twilio & Vertex AI Integration - Optimized for Speed",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
