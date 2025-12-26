@@ -10,6 +10,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Using 0.x.x format for pre-release development phase.
 Version 1.0.0 will represent first public production release.
 
+## [0.9.5] - 2025-12-25
+
+### Fixed - CRITICAL: Phone Provisioning Authentication
+- **Cloud Run Missing Twilio Credentials**: Added missing TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables to Cloud Run
+- **Root Cause**: Cloud Run service only had Google Cloud variables, missing Twilio credentials entirely
+- **Impact**: All phone provisioning attempts were failing with "RestException [Error]: Authenticate" (code 20003, status 401)
+- **Resolution**: Updated Cloud Run service with complete environment variables:
+  - TWILIO_ACCOUNT_SID
+  - TWILIO_AUTH_TOKEN
+  - MIDDLEWARE_URL (for webhook configuration)
+  - NODE_ENV=production
+- **Verification**: Tested registration endpoint successfully provisioned +17866996413 (786 area code)
+
+### Technical Details
+- Deployment: Cloud Run revision phoneease-middleware-00025-77q
+- Both service URLs remain active and functional:
+  - https://phoneease-middleware-pr6tyivo4a-uc.a.run.app (legacy)
+  - https://phoneease-middleware-375589245036.us-central1.run.app (current)
+- Test customer created: site_token f95f89bc-e180-41b0-92f8-f32b398e7ebc
+- Twilio sub-account: AC2d147e561423b850c8348baac72a67e7
+
 ## [0.9.4] - 2025-12-24
 
 ### Changed - Call Tracking Schema Improvement
