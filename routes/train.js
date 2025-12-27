@@ -17,7 +17,8 @@ const {
   hasExceededTrainingLimit,
 } = require('../services/firestore');
 
-const { generateTrainingResponse } = require('../services/vertexai');
+const vertexAI = require('../services/vertexai');
+const anthropic = require('../services/anthropic');
 
 /**
  * POST /api/v1/train
@@ -26,6 +27,9 @@ const { generateTrainingResponse } = require('../services/vertexai');
  * {
  *   site_token: string (required)
  *   message: string (required)
+ *   model: string (optional) - AI model to use (defaults to gemini-2.0-flash-exp)
+ *     Supported: gemini-2.5-flash-lite, gemini-2.5-flash, gemini-3-flash-preview,
+ *                claude-haiku-4-5, claude-sonnet-4-5
  *   context: string (optional)
  *   business_info: {
  *     business_name: string (required)
@@ -47,7 +51,10 @@ router.post('/', async (req, res) => {
     console.log('Body:', JSON.stringify(req.body, null, 2));
 
     // 1. Validate required fields
-    const { site_token, message, business_info } = req.body;
+    const { site_token, message, business_info, model } = req.body;
+
+    // Default model if not specified
+    const selectedModel = model || process.env.VERTEX_AI_MODEL || 'gemini-2.0-flash-exp';
 
     if (!site_token) {
       return res.status(400).json({
@@ -92,9 +99,20 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 5. Generate AI response
-    console.log('Generating AI response...');
-    const aiResponse = await generateTrainingResponse(business_info, message);
+    // 5. Generate AI response with selected model
+    console.log(`Generating AI response using model: ${selectedModel}...`);
+
+    let aiResponse;
+    const isClaude = selectedModel.startsWith('claude-');
+
+    if (isClaude) {
+      // Use Claude (Anthropic)
+      const prompt = vertexAI.buildTrainingPrompt(business_info, message);
+      aiResponse = await anthropic.generateTrainingResponse(selectedModel, prompt, message);
+    } else {
+      // Use Gemini (VertexAI) - pass model name for dynamic selection
+      aiResponse = await vertexAI.generateTrainingResponse(business_info, message, selectedModel);
+    }
 
     // 6. Increment training counter
     await incrementTrainingUsage(customer.id);

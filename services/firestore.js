@@ -165,6 +165,35 @@ async function createCustomer(siteToken, customerData) {
 }
 
 /**
+ * Get customer by site URL
+ *
+ * @param {string} siteUrl - Customer's WordPress site URL
+ * @returns {Promise<Object|null>} Customer data or null if not found
+ */
+async function getCustomerBySiteUrl(siteUrl) {
+  try {
+    console.log(`Firestore: Looking up customer by site_url: ${siteUrl}`);
+
+    const customersRef = firestore.collection(CUSTOMERS_COLLECTION);
+    const snapshot = await customersRef.where('site_url', '==', siteUrl).limit(1).get();
+
+    if (snapshot.empty) {
+      console.log('Firestore: No customer found with this site_url');
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const data = { id: doc.id, ...doc.data() };
+
+    console.log(`Firestore: Customer found - ${data.business_name} (${data.phone_number})`);
+    return data;
+  } catch (error) {
+    console.error('Firestore: Error fetching customer by site URL:', error);
+    throw error;
+  }
+}
+
+/**
  * Check if customer has exceeded training limit
  *
  * @param {Object} customer - Customer document
@@ -180,4 +209,5 @@ module.exports = {
   createCustomer,
   incrementTrainingUsage,
   hasExceededTrainingLimit,
+  getCustomerBySiteUrl,
 };

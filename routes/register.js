@@ -60,11 +60,26 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // 2. Generate unique site_token
+    // 2. Check if customer already exists with this site_url (one number per site policy)
+    console.log('Checking if site_url already has a provisioned number...');
+    const existingCustomer = await firestoreService.getCustomerBySiteUrl(site_url);
+
+    if (existingCustomer && existingCustomer.phone_number) {
+      console.log(`Customer already registered: ${existingCustomer.phone_number}`);
+      return res.status(409).json({
+        success: false,
+        error: 'Customer already registered',
+        phone_number: existingCustomer.phone_number,
+        site_token: existingCustomer.site_token,
+        message: 'A phone number is already provisioned for this website. Please contact support to change your number.'
+      });
+    }
+
+    // 3. Generate unique site_token
     const siteToken = uuidv4();
     console.log(`Generated site_token: ${siteToken}`);
 
-    // 3. Extract area code from business_phone if provided
+    // 4. Extract area code from business_phone if provided
     console.log('=== AREA CODE PROCESSING ===');
     let areaCode = null;
     if (business_phone) {
@@ -83,7 +98,7 @@ router.post('/register', async (req, res) => {
     }
     console.log('=== AREA CODE PROCESSING COMPLETE ===');
 
-    // 4. Create Twilio sub-account
+    // 5. Create Twilio sub-account
     console.log('Creating Twilio sub-account...');
     let subAccount;
     try {
@@ -98,7 +113,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // 5. Provision phone number
+    // 6. Provision phone number
     console.log('Provisioning phone number...');
     let phoneNumber, numberSid;
     try {
@@ -125,7 +140,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // 6. Store customer in Firestore with extended schema
+    // 7. Store customer in Firestore with extended schema
     console.log('Storing customer in Firestore...');
     const now = new Date().toISOString();
     const billingPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -182,7 +197,7 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // 7. Return success response
+    // 8. Return success response
     console.log('=== /api/v1/customers/register Success ===');
     console.log(`Customer registered: ${business_name}`);
     console.log(`Site Token: ${siteToken}`);

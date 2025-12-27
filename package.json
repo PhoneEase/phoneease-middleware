@@ -1,6 +1,6 @@
 {
   "name": "phoneease-middleware",
-  "version": "0.9.13",
+  "version": "0.9.17",
   "description": "PhoneEase Cloud Run Middleware - Twilio & Vertex AI Integration - Optimized for Speed",
   "main": "index.js",
   "scripts": {
@@ -11,6 +11,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@google-cloud/firestore": "^7.1.0",
     "@google-cloud/vertexai": "^1.1.0",
     "cors": "^2.8.5",

@@ -109,20 +109,23 @@ CRITICAL RULES:
  * Call Gemini API with prompt
  *
  * @param {string} prompt - The prompt to send
+ * @param {string} modelName - Optional model name (defaults to MODEL_NAME)
  * @returns {Promise<Object>} Response with text, tokens, and response time
  */
-async function callGemini(prompt) {
+async function callGemini(prompt, modelName = null) {
   console.log('=== VERTEX AI API CALL ===');
   const startTime = Date.now();
 
+  const selectedModel = modelName || MODEL_NAME;
+
   try {
-    console.log('├─ Model:', MODEL_NAME);
+    console.log('├─ Model:', selectedModel);
     console.log('├─ Prompt length:', prompt.length, 'characters');
 
     // Model initialization
     const modelInitStart = Date.now();
     const model = vertexAI.getGenerativeModel({
-      model: MODEL_NAME,
+      model: selectedModel,
       generationConfig: {
         maxOutputTokens: 150,      // Receptionist responses should be concise (1-2 sentences)
         temperature: 0.7,           // Lower = faster, more consistent responses
@@ -196,11 +199,12 @@ async function callGemini(prompt) {
  *
  * @param {Object} businessInfo - Business information
  * @param {string} message - User's training question
+ * @param {string} modelName - Optional model name
  * @returns {Promise<Object>} AI response with text and tokens
  */
-async function generateTrainingResponse(businessInfo, message) {
+async function generateTrainingResponse(businessInfo, message, modelName = null) {
   const prompt = buildTrainingPrompt(businessInfo, message);
-  return await callGemini(prompt);
+  return await callGemini(prompt, modelName);
 }
 
 /**
