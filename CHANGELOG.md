@@ -10,6 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Using 0.x.x format for pre-release development phase.
 Version 1.0.0 will represent first public production release.
 
+## [0.9.17] - 2025-12-27
+
+### Added - Claude (Anthropic) Model Integration
+
+**New Features:**
+- Added full support for Claude models (claude-haiku-4-5, claude-sonnet-4-5) via Anthropic API
+- Created `services/anthropic.js` with Claude API integration
+- Added model routing logic in `routes/train.js` to automatically route Claude models to Anthropic API
+- Added `@anthropic-ai/sdk` v0.32.1 dependency
+- Added `ANTHROPIC_API_KEY` environment variable to Cloud Run configuration
+
+**Implementation Details:**
+- Claude requests use the same system prompt and message format as Gemini models
+- Claude models use max_tokens: 150 and temperature: 0.7 to match Gemini's concise response settings
+- Conversation history optimization: Only last 5 turns sent to reduce latency
+- Performance monitoring and logging for Claude API calls
+- Claude Haiku meets performance target (<2500ms)
+- Claude Sonnet is slower (~7-8s) but provides higher quality responses
+
+**Technical Notes:**
+- Claude models are identified by `model.startsWith('claude-')`
+- System prompt is built using existing `vertexAI.buildTrainingPrompt()` for consistency
+- Both models return standard response format: `{ text, tokensUsed, responseTimeMs }`
+
+**Deployment:**
+- Committed and deployed to Cloud Run (revision phoneease-middleware-00032-dlq)
+- ANTHROPIC_API_KEY successfully set in production environment
+- Both Claude models tested and confirmed working correctly
+
 ## [0.9.13] - 2025-12-26
 
 ### Improved - CRITICAL: Response Time Optimization (5-8s → 1.5-2.5s)
